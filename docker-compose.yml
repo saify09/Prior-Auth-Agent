@@ -1,0 +1,175 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for audit logs
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: prior_auth_audit
+      POSTGRES_USER: audit_user
+      POSTGRES_PASSWORD: secure_password_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audit_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ for message queue
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin_password_change_me
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.auth.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://audit_user:secure_password_change_me@postgres:5432/prior_auth_audit
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Validation Agent
+  validation-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.validation_agent.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PLANNER_SERVICE_URL=http://planner-agent:8002
+    depends_on:
+      - auth-service
+      - planner-agent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Planner Agent
+  planner-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.planner_agent.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    environment:
+      - DENIAL_PREDICTION_URL=http://denial-prediction-agent:8003
+      - FHIR_AGENT_URL=http://fhir-agent:8004
+      - EDI_AGENT_URL=http://edi-agent:8005
+    depends_on:
+      - denial-prediction-agent
+      - fhir-agent
+      - edi-agent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Denial Prediction Agent
+  denial-prediction-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.denial_prediction_agent.main:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FHIR Agent
+  fhir-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.fhir_agent.main:app --host 0.0.0.0 --port 8004
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # EDI Agent
+  edi-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.edi_agent.main:app --host 0.0.0.0 --port 8005
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Explanation Agent
+  explanation-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.explanation_agent.main:app --host 0.0.0.0 --port 8006
+    ports:
+      - "8006:8006"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring Agent
+  monitoring-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.agents.monitoring_agent.main:app --host 0.0.0.0 --port 8007
+    ports:
+      - "8007:8007"
+    environment:
+      - FHIR_AGENT_URL=http://fhir-agent:8004
+    depends_on:
+      - fhir-agent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: prior-auth-network

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prior-auth
+  labels:
+    name: prior-auth
+    environment: production
+    compliance: hipaa

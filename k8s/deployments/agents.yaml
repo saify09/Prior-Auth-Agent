@@ -1,0 +1,300 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: validation-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: validation-agent
+  template:
+    metadata:
+      labels:
+        app: validation-agent
+    spec:
+      containers:
+      - name: validation-agent
+        image: prior-auth/validation-agent:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:8000"
+        - name: PLANNER_SERVICE_URL
+          value: "http://planner-agent:8002"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: validation-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: validation-agent
+  ports:
+  - port: 8001
+    targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planner-agent
+  namespace: prior-auth
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: planner-agent
+  template:
+    metadata:
+      labels:
+        app: planner-agent
+    spec:
+      containers:
+      - name: planner-agent
+        image: prior-auth/planner-agent:latest
+        ports:
+        - containerPort: 8002
+        env:
+        - name: DENIAL_PREDICTION_URL
+          value: "http://denial-prediction-agent:8003"
+        - name: FHIR_AGENT_URL
+          value: "http://fhir-agent:8004"
+        - name: EDI_AGENT_URL
+          value: "http://edi-agent:8005"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: planner-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: planner-agent
+  ports:
+  - port: 8002
+    targetPort: 8002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: denial-prediction-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: denial-prediction-agent
+  template:
+    metadata:
+      labels:
+        app: denial-prediction-agent
+    spec:
+      containers:
+      - name: denial-prediction-agent
+        image: prior-auth/denial-prediction-agent:latest
+        ports:
+        - containerPort: 8003
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: denial-prediction-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: denial-prediction-agent
+  ports:
+  - port: 8003
+    targetPort: 8003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fhir-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fhir-agent
+  template:
+    metadata:
+      labels:
+        app: fhir-agent
+    spec:
+      containers:
+      - name: fhir-agent
+        image: prior-auth/fhir-agent:latest
+        ports:
+        - containerPort: 8004
+        envFrom:
+        - secretRef:
+            name: payer-credentials
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fhir-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: fhir-agent
+  ports:
+  - port: 8004
+    targetPort: 8004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edi-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: edi-agent
+  template:
+    metadata:
+      labels:
+        app: edi-agent
+    spec:
+      containers:
+      - name: edi-agent
+        image: prior-auth/edi-agent:latest
+        ports:
+        - containerPort: 8005
+        envFrom:
+        - secretRef:
+            name: payer-credentials
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edi-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: edi-agent
+  ports:
+  - port: 8005
+    targetPort: 8005
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: explanation-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: explanation-agent
+  template:
+    metadata:
+      labels:
+        app: explanation-agent
+    spec:
+      containers:
+      - name: explanation-agent
+        image: prior-auth/explanation-agent:latest
+        ports:
+        - containerPort: 8006
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: explanation-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: explanation-agent
+  ports:
+  - port: 8006
+    targetPort: 8006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-agent
+  namespace: prior-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitoring-agent
+  template:
+    metadata:
+      labels:
+        app: monitoring-agent
+    spec:
+      containers:
+      - name: monitoring-agent
+        image: prior-auth/monitoring-agent:latest
+        ports:
+        - containerPort: 8007
+        env:
+        - name: FHIR_AGENT_URL
+          value: "http://fhir-agent:8004"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-agent
+  namespace: prior-auth
+spec:
+  selector:
+    app: monitoring-agent
+  ports:
+  - port: 8007
+    targetPort: 8007
