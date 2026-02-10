@@ -127,4 +127,5 @@ kubectl get pods -n prior-auth
 - Audit logs in PostgreSQL
 
 ## License
+### Saifuddin Hanif
 Proprietary - Internal Use Only
